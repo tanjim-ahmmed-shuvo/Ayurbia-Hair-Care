@@ -556,8 +556,8 @@
                             </div>
                         </div>
 
-                        <button type="submit" class="w-full bg-brand-700 text-white py-4 rounded-xl text-lg md:text-xl font-bold shadow-xl shadow-brand-200 hover:bg-brand-800 active:scale-95 transition-all mt-4 border border-brand-800 flex justify-center items-center gap-2">
-                            অর্ডার কনফার্ম করুন
+                        <button type="submit" id="submitBtn" class="w-full bg-brand-700 text-white py-4 rounded-xl text-lg md:text-xl font-bold shadow-xl shadow-brand-200 hover:bg-brand-800 active:scale-95 transition-all mt-4 border border-brand-800 flex justify-center items-center gap-2">
+                            <span>অর্ডার কনফার্ম করুন</span>
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
                         </button>
                         <p class="text-center text-xs text-brand-600/70 mt-3 md:mt-4 font-medium flex items-center justify-center gap-1.5">
@@ -678,6 +678,13 @@
         // ইংরেজি সংখ্যাকে বাংলায় কনভার্ট করার ফাংশন
         const toBn = n => n.toString().replace(/\d/g, d => '০১২৩৪৫৬৭৮৯'[d]);
 
+        // ======================================================================
+        // আপনার Telegram Bot এর সিক্রেট কি (Secret Keys) এখানে বসান
+        // ======================================================================
+        const TELEGRAM_BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN_HERE"; // এখানে আপনার টেলিগ্রাম বট টোকেন দিন (যেমন: 123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11)
+        const TELEGRAM_CHAT_ID = "YOUR_TELEGRAM_CHAT_ID_HERE"; // এখানে আপনার চ্যাট আইডি দিন (যেমন: 123456789)
+        // ======================================================================
+
         // --- Facebook Pixel Advanced Tracking Events ---
         document.addEventListener('DOMContentLoaded', function() {
             
@@ -739,91 +746,84 @@
             const customerName = document.getElementById('name').value;
             const customerPhone = document.getElementById('phone').value;
             const customerAddress = document.getElementById('address').value;
-            const submitBtn = document.querySelector('#orderForm button[type="submit"]');
+            
+            // Button Selection
+            const submitBtn = document.getElementById('submitBtn');
             const originalBtnText = submitBtn.innerHTML;
-
+            
             const packageNames = {
                 'oil': 'শুধুমাত্র হেয়ার অয়েল (৳৮৫০)',
                 'pack': 'শুধুমাত্র হেয়ার প্যাক পাউডার (৳৮৫০)',
                 'combo': 'ফুল কম্বো প্যাক (৳৯৯০)'
             };
 
-            const orderData = {
-                name: customerName,
-                phone: customerPhone,
-                address: customerAddress,
-                packageName: packageNames[selectedPackage],
-                totalPrice: toBn(price + deliveryCharge),
-                rawPackageId: selectedPackage,
-                rawPrice: price + deliveryCharge
-            };
+            const totalPriceBn = toBn(price + deliveryCharge);
 
-            submitBtn.innerText = "অর্ডার প্রসেস হচ্ছে...";
+            // বাটনে স্পিনিং এনিমেশন এড করা (Loading Animation)
+            submitBtn.innerHTML = `
+                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>অর্ডার প্রসেস হচ্ছে...</span>
+            `;
             submitBtn.disabled = true;
 
-            // =========================================================================
-            // 🔴 সরাসরি ফ্রন্টএন্ড থেকে ডেটা পাঠানোর সিক্রেট সেটিং (এখান থেকে পরিবর্তন করুন) 🔴
-            // =========================================================================
-            
-            // মেথড ১: Google Sheets (Apps Script), Formspree, বা Discord Webhook
-            // আপনি যদি গুগল শিট বা ডিসকর্ড ওয়েব হুক ব্যবহার করেন, তাহলে এখানে আপনার URL দিন:
-            const WEBHOOK_URL = "YOUR_WEBHOOK_URL_HERE"; 
+            // Telegram Message Format
+            const telegramMessage = `
+🎉 *নতুন অর্ডার এসেছে! (Ayurbia)*
+--------------------------------------
+👤 *নাম:* ${customerName}
+📞 *মোবাইল:* ${customerPhone}
+📍 *ঠিকানা:* ${customerAddress}
+🛍️ *প্যাকেজ:* ${packageNames[selectedPackage]}
+💰 *সর্বমোট বিল:* ৳${totalPriceBn}
+--------------------------------------
+            `;
 
-            // মেথড ২: Telegram Bot (টেলিগ্রামে অর্ডার মেসেজ পেতে চাইলে)
-            // টেলিগ্রাম ব্যবহার করতে চাইলে নিচের অপশনটি "true" করে দিন এবং Token ও Chat ID বসান।
-            const USE_TELEGRAM = false; 
-            const TELEGRAM_BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"; // উদাহরণ: "123456789:ABCDefgh..."
-            const TELEGRAM_CHAT_ID = "YOUR_TELEGRAM_CHAT_ID";     // উদাহরণ: "-100123456789"
+            // Telegram API URL
+            const telegramApiUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
 
-            // =========================================================================
-
-            let fetchUrl = WEBHOOK_URL;
-            let fetchOptions = {
+            // Send to Telegram
+            fetch(telegramApiUrl, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(orderData)
-            };
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    chat_id: TELEGRAM_CHAT_ID,
+                    text: telegramMessage,
+                    parse_mode: 'Markdown'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if(data.ok) {
+                    // 4. Purchase Event Tracking - ONLY FIRES ON SUCCESS
+                    if (typeof fbq !== 'undefined') {
+                        fbq('track', 'Purchase', {
+                            content_ids: [selectedPackage],
+                            content_name: packageNames[selectedPackage],
+                            content_type: 'product',
+                            value: price + deliveryCharge,
+                            currency: 'BDT',
+                            num_items: 1
+                        });
+                    }
 
-            // যদি টেলিগ্রাম ব্যবহারের অপশন চালু থাকে
-            if (USE_TELEGRAM) {
-                fetchUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
-                
-                // টেলিগ্রামে যেভাবে মেসেজ দেখাবে তার ফরম্যাট
-                const telegramMessage = `🛒 নতুন অর্ডার এসেছে!\n\n👤 নাম: ${orderData.name}\n📞 ফোন: ${orderData.phone}\n📍 ঠিকানা: ${orderData.address}\n📦 প্যাকেজ: ${orderData.packageName}\n💰 মোট মূল্য: ${orderData.totalPrice}`;
-                
-                fetchOptions.body = JSON.stringify({ 
-                    chat_id: TELEGRAM_CHAT_ID, 
-                    text: telegramMessage 
-                });
-            } else {
-                // Google Sheets বা অন্যান্য থার্ড পার্টি Webhook এর CORS error এড়াতে "no-cors" অ্যাড করা হলো
-                fetchOptions.mode = 'no-cors';
-            }
-
-            // Send Request to Backend/Webhook
-            fetch(fetchUrl, fetchOptions)
-            .then(() => {
-                // 4. Purchase Event Tracking - ONLY FIRES ON SUCCESS
-                if (typeof fbq !== 'undefined') {
-                    fbq('track', 'Purchase', {
-                        content_ids: [selectedPackage],
-                        content_name: packageNames[selectedPackage],
-                        content_type: 'product',
-                        value: price + deliveryCharge,
-                        currency: 'BDT',
-                        num_items: 1
-                    });
+                    document.getElementById('successPopup').style.display = 'flex';
+                    document.getElementById('orderForm').reset();
+                    document.getElementById('form-error-msg').classList.add('hidden');
+                } else {
+                    showError("দুঃখিত, অর্ডার সাবমিট করতে সমস্যা হয়েছে। আপনার টেলিগ্রাম টোকেন ও চ্যাট আইডি চেক করুন।");
                 }
-
-                document.getElementById('successPopup').style.display = 'flex';
-                document.getElementById('orderForm').reset();
-                document.getElementById('form-error-msg').classList.add('hidden');
             })
             .catch(error => {
                 console.error('Error:', error);
-                showError("ইন্টারনেট কানেকশনে সমস্যা বা সার্ভার ডাউন। আবার চেষ্টা করুন।");
+                showError("ইন্টারনেট কানেকশনে সমস্যা। আবার চেষ্টা করুন।");
             })
             .finally(() => {
+                // Restore button original state
                 submitBtn.innerHTML = originalBtnText;
                 submitBtn.disabled = false;
             });
